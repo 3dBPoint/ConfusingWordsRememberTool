@@ -4,8 +4,6 @@
 #include <QFile>
 #include <QMainWindow>
 
-
-
 struct Word_explaination
 {
     QString partOfSpeech;
@@ -49,15 +47,14 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    QString originalFileName;
-    QString originalFileStr;
     QVector<Word> wordsVec;
 
+    QString originalFileName;
     QString confusingFileName;
 
+    bool makeCWFile(QString cwFileName, unsigned int dist);
     bool makeCWFile(QString originalName, QString cwName, unsigned int dist);
     Word parseOriginalFileLine(QString &line);
-    unsigned int editDist(QString str1, QString str2);
 };
 
 #endif // MAINWINDOW_H

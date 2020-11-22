@@ -5,6 +5,7 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QDir>
+#include <QTime>
 
 #define CONFUSING_WORD_OPERATE_TEXT_GEN "Generate!"
 #define CONFUSING_WORD_OPERATE_TEXT_DEL "Delete!"
@@ -73,15 +74,43 @@ void MainWindow::on_ui_btn_select_origin_file_clicked()
         return;
     }
 
-//    originalFileStr = originalFile.readAll();
+    QFile originalFile(originalFileName);
 
-//    if (originalFileStr.isEmpty())
-//    {
-//        QMessageBox::warning(this, QCoreApplication::applicationName(), "empty original file", QMessageBox::Ok);
-//        originalFile.close();
-//        return;
-//    }
+    if (true != originalFile.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        QMessageBox::warning(this, QCoreApplication::applicationName(), "file open failed", QMessageBox::Ok);
+        return;
+    }
 
+    QTextStream txtStream(&originalFile);
+    txtStream.setCodec("UTF-8");
+
+    QString oneLineStr;
+
+    QTime t;
+    t.start();
+
+    Word w;
+    while (txtStream.readLineInto(&oneLineStr))
+    {
+        if (oneLineStr.isEmpty())
+        {
+            continue;
+        }
+
+        w = parseOriginalFileLine(oneLineStr);
+        wordsVec.append(w);
+
+#if MAKE_CW_FILE_DEBUG
+        qDebug() << w.word << ":" << w.exp;
+#endif
+    }
+
+#if MAKE_CW_FILE_DEBUG
+    qDebug("read && parse file use %d ms, with %d items", t.elapsed(), wordsVec.size());
+#endif
+
+    originalFile.close();
     ui->ui_line_edit_origin_file_path->setText(originalFileName);
 }
 
@@ -126,7 +155,14 @@ void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
     }
     else if (ui->ui_btn_operate_confusing_word_file->text() == CONFUSING_WORD_OPERATE_TEXT_GEN)
     {
+#if 0
         if (!makeCWFile(originalFileName, confusingFileName, ui->ui_cmb_box_edit_distance->currentText().toUInt()))
+        {
+            QMessageBox::critical(this, "critical", "Generate Failed!");
+            return;
+        }
+#endif
+        if (!makeCWFile(confusingFileName, ui->ui_cmb_box_edit_distance->currentText().toUInt()))
         {
             QMessageBox::critical(this, "critical", "Generate Failed!");
             return;
@@ -137,6 +173,53 @@ void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
     {
         QMessageBox::critical(this, "critical", "unknown op", QMessageBox::Ok);
     }
+}
+
+bool MainWindow::makeCWFile(QString cwFileName, unsigned int dist)
+{
+    if (wordsVec.isEmpty())
+    {
+        return false;
+    }
+
+    QFile cwFile(cwFileName);
+
+    if (true != cwFile.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::warning(this, QCoreApplication::applicationName(), "cw file open failed", QMessageBox::Ok);
+        return false;
+    }
+
+    QTextStream cwTxtStm(&cwFile);
+    cwTxtStm.setCodec("UTF-8");
+
+    QTime t;
+    t.start();
+
+    for (QVector<Word>::iterator it = wordsVec.begin(); it != wordsVec.end(); it++)
+    {
+        for (QVector<Word>::iterator ir = it; ir != wordsVec.end(); it++)
+        {
+            if (dist == editDistance(it->word.toLatin1().data(), it->word.length(), ir->word.toLatin1().data(), ir->word.length()))
+            {
+#if MAKE_CW_FILE_DEBUG
+                qDebug() << it->word << ":" << it->exp << "-" << ir->word << ":" << ir->exp;
+#endif
+                /* Header: cw_pair_1 cw_pair_1_exp cw_pair_2 cw_pair_2_exp OK_times*/
+                cwTxtStm << it->word << ',' << it->exp << ','
+                         << ir->word << ',' << ir->exp << ','
+                         << '0' << endl;
+            }
+        }
+    }
+
+#if MAKE_CW_FILE_DEBUG
+    qDebug("make cw file use %d ms", t.elapsed());
+#endif
+
+    cwFile.close();
+
+    return true;
 }
 
 bool MainWindow::makeCWFile(QString originalName, QString cwName, unsigned int dist)
@@ -208,7 +291,7 @@ Word MainWindow::parseOriginalFileLine(QString &line)
 
     if (-1 == firstSpace || -1 == secondSpace)
     {
-        qDebug() << "NG @" << line;
+        qDebug() << "NG, str:" << line;
         return Word();
     }
 #if MAKE_CW_FILE_DEBUG
@@ -216,16 +299,4 @@ Word MainWindow::parseOriginalFileLine(QString &line)
 #endif
 
     return Word(line.mid(firstSpace + 1, wordLen), line.mid(secondSpace + 1));
-}
-
-unsigned int MainWindow::editDist(QString str1, QString str2)
-{
-//    QStringRef
-//    if (min(str1.length(), str2.length()) == 0)
-//    {
-//        return max(str1.length(), str2.length());
-//    }
-
-//    return max(this->editDist(str1.chop(1)))
-    return 0;
 }
