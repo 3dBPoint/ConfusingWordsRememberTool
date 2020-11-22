@@ -48,21 +48,21 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="ui_label_word_1">
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;TextLabel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QLabel" name="label_2">
+        <widget class="QLabel" name="ui_label_word_2">
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;TextLabel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>
        <item row="3" column="1">
-        <widget class="QPushButton" name="pushButton_4">
+        <widget class="QPushButton" name="ui_btn_understood_pair">
          <property name="text">
           <string>I got this</string>
          </property>
@@ -76,24 +76,24 @@
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QPushButton" name="pushButton_3">
+        <widget class="QPushButton" name="ui_btn_remove_the_pair">
          <property name="text">
           <string>Too easy</string>
          </property>
         </widget>
        </item>
        <item row="4" column="1">
-        <widget class="QPushButton" name="pushButton_2">
+        <widget class="QPushButton" name="ui_btn_next_pair">
          <property name="text">
           <string>&gt;</string>
          </property>
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QTextEdit" name="textEdit"/>
+        <widget class="QTextEdit" name="ui_txt_edit_exp_1"/>
        </item>
        <item row="2" column="1">
-        <widget class="QTextEdit" name="textEdit_2"/>
+        <widget class="QTextEdit" name="ui_txt_edit_exp_2"/>
        </item>
       </layout>
      </widget>

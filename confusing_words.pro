@@ -25,10 +25,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-        mainwindow.cpp
+        mainwindow.cpp \
+    confusingwordspair.cpp \
+    word.cpp
 
 HEADERS += \
-        mainwindow.h
+        mainwindow.h \
+    confusingwordspair.h \
+    word.h
 
 FORMS += \
         mainwindow.ui

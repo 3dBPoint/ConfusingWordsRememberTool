@@ -18,6 +18,7 @@
 
 /**** Debug Switch ****/
 #define MAKE_CW_FILE_DEBUG 1
+#define DISP_CW_PAIR_DEBUG 1
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -26,11 +27,22 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     ui->ui_cmb_box_edit_distance->addItems(QStringList() << "1" << "2" << "3" << "4" << "5" << "6" << "7" << "8" << "9" << "10");
+
+    QTime t;
+    t = QTime::currentTime();
+    qsrand(t.msec() + t.second() * 1000);
+
+    pRemainCWPairs = new QList<ConfusingWordsPair>();
+    pShownCWPairs = new QList<ConfusingWordsPair>();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    if (pRemainCWPairs)
+        delete pRemainCWPairs;
+    if (pShownCWPairs)
+        delete pShownCWPairs;
 }
 
 static inline unsigned int min(unsigned int n1, unsigned int n2)
@@ -138,6 +150,8 @@ void MainWindow::on_ui_cmb_box_edit_distance_currentTextChanged(const QString &a
     {
         ui->ui_btn_operate_confusing_word_file->setText(CONFUSING_WORD_OPERATE_TEXT_GEN);
     }
+
+    //TODO: show one pair here
 }
 
 void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
@@ -162,6 +176,14 @@ void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
             return;
         }
 #endif
+        if (pMsgBox)
+            delete pMsgBox;
+        pMsgBox = new QMessageBox(this);
+
+        pMsgBox->setText("Creating File, and will take a while, please wait...");
+        pMsgBox->setModal(false);
+        pMsgBox->show();
+
         if (!makeCWFile(confusingFileName, ui->ui_cmb_box_edit_distance->currentText().toUInt()))
         {
             QMessageBox::critical(this, "critical", "Generate Failed!");
@@ -198,17 +220,27 @@ bool MainWindow::makeCWFile(QString cwFileName, unsigned int dist)
 
     for (QVector<Word>::iterator it = wordsVec.begin(); it != wordsVec.end(); it++)
     {
-        for (QVector<Word>::iterator ir = it; ir != wordsVec.end(); it++)
+#if MAKE_CW_FILE_DEBUG
+        qDebug() << "word1:" << it - wordsVec.begin() << it->word;
+#endif
+        for (QVector<Word>::iterator ir = it + 1; ir != wordsVec.end(); ir++)
         {
+#if MAKE_CW_FILE_DEBUG
+            qDebug() << "word2" << ir - wordsVec.begin() << ir->word;
+#endif
             if (dist == editDistance(it->word.toLatin1().data(), it->word.length(), ir->word.toLatin1().data(), ir->word.length()))
             {
 #if MAKE_CW_FILE_DEBUG
-                qDebug() << it->word << ":" << it->exp << "-" << ir->word << ":" << ir->exp;
+                qDebug() <<"find one: " << it->word << ":" << it->exp << "-" << ir->word << ":" << ir->exp;
 #endif
                 /* Header: cw_pair_1 cw_pair_1_exp cw_pair_2 cw_pair_2_exp OK_times*/
                 cwTxtStm << it->word << ',' << it->exp << ','
                          << ir->word << ',' << ir->exp << ','
                          << '0' << endl;
+
+                ConfusingWordsPair pair(*it, *ir, 0);
+
+                pRemainCWPairs->append(pair);
             }
         }
     }
@@ -299,4 +331,34 @@ Word MainWindow::parseOriginalFileLine(QString &line)
 #endif
 
     return Word(line.mid(firstSpace + 1, wordLen), line.mid(secondSpace + 1));
+}
+
+uint32_t MainWindow::getShowPairRandomIndex()
+{
+    // generate a random value between 0 to num of remaining confusing words
+    uint32_t index = qrand() % pRemainCWPairs->size();
+
+    return index;
+}
+
+void MainWindow::showOneCWPair(ConfusingWordsPair pair)
+{
+    bool isReverse = qrand() % 2; // 0 or 1
+
+    if (false == isReverse)
+    {
+        ui->ui_label_word_1->setText(pair.w1.word);
+        ui->ui_label_word_2->setText(pair.w2.word);
+
+        ui->ui_txt_edit_exp_1->setText(pair.w1.exp);
+        ui->ui_txt_edit_exp_2->setText(pair.w2.exp);
+    }
+    else
+    {
+        ui->ui_label_word_1->setText(pair.w2.word);
+        ui->ui_label_word_2->setText(pair.w1.word);
+
+        ui->ui_txt_edit_exp_1->setText(pair.w2.exp);
+        ui->ui_txt_edit_exp_2->setText(pair.w1.exp);
+    }
 }

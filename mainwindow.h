@@ -1,29 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "confusingwordspair.h"
+
 #include <QFile>
 #include <QMainWindow>
-
-struct Word_explaination
-{
-    QString partOfSpeech;
-    QString chinese;
-};
-
-class Word
-{
-public:
-    Word(){}
-
-    Word(QString wo, QString ex):
-        word(wo),
-        exp(ex)
-    {}
-
-    QString word;
-    QString exp;
-//    QVector<Word_explaination> expVec;
-};
+#include <QMessageBox>
 
 namespace Ui {
 class MainWindow;
@@ -46,15 +28,22 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+    QMessageBox *pMsgBox = nullptr;
 
     QVector<Word> wordsVec;
+    QList<ConfusingWordsPair> *pRemainCWPairs;
+    QList<ConfusingWordsPair> *pShownCWPairs;
 
     QString originalFileName;
     QString confusingFileName;
 
     bool makeCWFile(QString cwFileName, unsigned int dist);
     bool makeCWFile(QString originalName, QString cwName, unsigned int dist);
+
     Word parseOriginalFileLine(QString &line);
+
+    uint32_t getShowPairRandomIndex();
+    void showOneCWPair(ConfusingWordsPair pair);
 };
 
 #endif // MAINWINDOW_H
