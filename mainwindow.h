@@ -24,26 +24,40 @@ private slots:
 
     void on_ui_cmb_box_edit_distance_currentTextChanged(const QString &arg1);
 
-    void on_ui_btn_operate_confusing_word_file_clicked();
+    // void on_ui_btn_operate_confusing_word_file_clicked();
+
+    void on_ui_btn_next_pair_clicked();
+
+    void on_ui_btn_load_cw_file_clicked();
+
+    void on_ui_btn_make_cw_file_clicked();
 
 private:
     Ui::MainWindow *ui;
     QMessageBox *pMsgBox = nullptr;
 
     QVector<Word> wordsVec;
+
+    ConfusingWordsPair pCurrentCWPairs;
     QList<ConfusingWordsPair> *pRemainCWPairs;
-    QList<ConfusingWordsPair> *pShownCWPairs;
+    QList<ConfusingWordsPair> *pCitedCWPairs;
 
-    QString originalFileName;
-    QString confusingFileName;
+    QVector<QList<ConfusingWordsPair> *> CWWordsPairs;
 
-    bool makeCWFile(QString cwFileName, unsigned int dist);
+    bool makeCWFiles();
+#if 0
     bool makeCWFile(QString originalName, QString cwName, unsigned int dist);
+#endif
 
     Word parseOriginalFileLine(QString &line);
 
-    uint32_t getShowPairRandomIndex();
+    void showOneCWPairRandomly();
+    int32_t getShowPairRandomIndex();
     void showOneCWPair(ConfusingWordsPair pair);
+
+    void RefreshFileList();
+    QString cwFileName(int dist);
+    bool loadCWFile(QString fileName);
 };
 
 #endif // MAINWINDOW_H

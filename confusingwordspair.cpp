@@ -4,6 +4,9 @@
 #include <QFile>
 #include <QTextStream>
 #include <QVector>
+#include <QDebug>
+
+#define CW_FILE_SEPARATOR ("\t")
 
 enum CWPairStrItemIndex
 {
@@ -33,13 +36,18 @@ void ConfusingWordsPair::parse(QString str)
 {
     if (str.isEmpty())
     {
+        qDebug() << "empty string";
         return;
     }
 
-    QStringList list = str.split(",");
+    QStringList list = str.split(CW_FILE_SEPARATOR);
 
     if (list.size() != CWPAIR_ITEM_NUM)
     {
+        qDebug() << "item num is" << list.size() << ", want" << CWPAIR_ITEM_NUM;
+        foreach (QString s, list) {
+            qDebug() << s;
+        }
         return;
     }
 
@@ -48,6 +56,7 @@ void ConfusingWordsPair::parse(QString str)
     temp = list[CWPAIR_ITEM_CORR_TIMES].toUInt(&isTransOK);
     if (false == isTransOK)
     {
+        qDebug() << "correct times trans failed";
         return;
     }
     correctTimes = temp;
@@ -56,7 +65,7 @@ void ConfusingWordsPair::parse(QString str)
     w1.exp = list[CWPAIR_ITEM_EXP_1];
 
     w2.word = list[CWPAIR_ITEM_WORD_2];
-    w2.exp = list[CWPAIR_ITEM_WORD_2];
+    w2.exp = list[CWPAIR_ITEM_EXP_2];
 }
 
 bool ConfusingWordsPair::saveConfusingWordsPairToFile(QString fileName, QVector<ConfusingWordsPair> *shownPairs, QVector<ConfusingWordsPair> *remainingPairs)
@@ -76,14 +85,14 @@ bool ConfusingWordsPair::saveConfusingWordsPairToFile(QString fileName, QVector<
     QTextStream stm(&file);
 
     foreach (ConfusingWordsPair wp, *shownPairs) {
-        stm << wp.w1.word << "," << wp.w1.exp << ","
-            << wp.w2.word << "," << wp.w2.exp << ","
+        stm << wp.w1.word << CW_FILE_SEPARATOR << wp.w1.exp << CW_FILE_SEPARATOR
+            << wp.w2.word << CW_FILE_SEPARATOR << wp.w2.exp << CW_FILE_SEPARATOR
             << wp.correctTimes;
     }
 
     foreach (ConfusingWordsPair wp, *remainingPairs) {
-        stm << wp.w1.word << "," << wp.w1.exp << ","
-            << wp.w2.word << "," << wp.w2.exp << ","
+        stm << wp.w1.word << CW_FILE_SEPARATOR << wp.w1.exp << CW_FILE_SEPARATOR
+            << wp.w2.word << CW_FILE_SEPARATOR << wp.w2.exp << CW_FILE_SEPARATOR
             << wp.correctTimes;
     }
 

@@ -19,6 +19,11 @@ public:
         exp(ex)
     {}
 
+    bool isEmpty()
+    {
+        return word.isEmpty() || exp.isEmpty();
+    }
+
     QString word;
     QString exp;
 //    QVector<Word_explaination> expVec;
