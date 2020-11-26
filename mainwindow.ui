@@ -20,7 +20,7 @@
       <x>10</x>
       <y>10</y>
       <width>381</width>
-      <height>241</height>
+      <height>251</height>
      </rect>
     </property>
     <property name="currentIndex">
@@ -30,13 +30,13 @@
      <attribute name="title">
       <string>Recite Words</string>
      </attribute>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>10</x>
         <y>10</y>
         <width>351</width>
-        <height>191</height>
+        <height>201</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_5">
@@ -92,7 +92,7 @@
        <item row="4" column="0">
         <widget class="QPushButton" name="ui_btn_remembered_the_pair_once">
          <property name="text">
-          <string>Correct</string>
+          <string>I know this</string>
          </property>
         </widget>
        </item>
@@ -106,7 +106,7 @@
        <item row="4" column="1">
         <widget class="QPushButton" name="ui_btn_forget_the_pair">
          <property name="text">
-          <string>Wrong</string>
+          <string>I forgot this</string>
          </property>
         </widget>
        </item>
@@ -171,7 +171,7 @@
       <property name="title">
        <string>Source</string>
       </property>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
         <rect>
          <x>30</x>

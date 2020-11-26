@@ -2,10 +2,16 @@
 #define MAINWINDOW_H
 
 #include "confusingwordspair.h"
+#include "cwfilemaker.h"
 
 #include <QFile>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QTextStream>
+#include <QMap>
+#include <QTime>
+
+#define CW_FILE_MAKE_THREAD_NUM 4
 
 namespace Ui {
 class MainWindow;
@@ -19,10 +25,16 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+signals:
+    void feedWord(Word w, unsigned int startSearchPos, CWFileMaker *distnation);
+
+public slots:
+    void onCWFound(int dist, ConfusingWordsPair cwPair);
+    void onParsedOnce();
+    void onCWFeedWordEaten(CWFileMaker *sponsor);
+
 private slots:
     void on_ui_btn_select_origin_file_clicked();
-
-    void on_ui_cmb_box_edit_distance_currentTextChanged(const QString &arg1);
 
     // void on_ui_btn_operate_confusing_word_file_clicked();
 
@@ -37,19 +49,22 @@ private:
     QMessageBox *pMsgBox = nullptr;
 
     QVector<Word> wordsVec;
+    QVector<Word>::iterator wordsVecIt;
 
     ConfusingWordsPair pCurrentCWPairs;
     QList<ConfusingWordsPair> *pRemainCWPairs;
     QList<ConfusingWordsPair> *pCitedCWPairs;
 
-    QVector<QList<ConfusingWordsPair> *> CWWordsPairs;
+    QMap<CWFileMaker *, QThread *> cwFileMakerThreads;
+
+    uint32_t cwCalculatedTimes;
+    uint32_t cwFullCalculateTimes;
+    QTime cwMakeTimer;
 
     bool makeCWFiles();
-#if 0
-    bool makeCWFile(QString originalName, QString cwName, unsigned int dist);
-#endif
 
     Word parseOriginalFileLine(QString &line);
+    uint32_t getCWPairCalcTimes();
 
     void showOneCWPairRandomly();
     int32_t getShowPairRandomIndex();
@@ -58,6 +73,8 @@ private:
     void RefreshFileList();
     QString cwFileName(int dist);
     bool loadCWFile(QString fileName);
+
+    QString statusBarStudyProgressStr(uint32_t dist, uint32_t index, double prog);
 };
 
 #endif // MAINWINDOW_H

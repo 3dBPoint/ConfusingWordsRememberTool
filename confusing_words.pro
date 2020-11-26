@@ -27,12 +27,14 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     confusingwordspair.cpp \
-    word.cpp
+    word.cpp \
+    cwfilemaker.cpp 
 
 HEADERS += \
         mainwindow.h \
     confusingwordspair.h \
-    word.h
+    word.h \
+    cwfilemaker.h
 
 FORMS += \
         mainwindow.ui

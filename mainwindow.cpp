@@ -4,8 +4,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QDir>
-#include <QTime>
 #include <QDebug>
+#include <QThread>
 
 #define CONFUSING_WORD_OPERATE_TEXT_GEN "Generate!"
 #define CONFUSING_WORD_OPERATE_TEXT_DEL "Delete!"
@@ -16,8 +16,6 @@
 #define CW_WORDS_FILE_DIR "/confusing_words/"
 
 #define UI_CMBBOX_NO_CW_FILE_FOUND_TXT ("No file found")
-
-#define CW_WORDS_MAX_DIST 3
 
 #define FRONT_BODY "<html><head/><body><p align=\"center\"><span style=\" font-size:16pt;\">"
 #define REAR_BODY "</span></p></body></html>"
@@ -42,7 +40,8 @@ MainWindow::MainWindow(QWidget *parent) :
     t = QTime::currentTime();
     qsrand(t.msec() + t.second() * 1000);
 
-    connect(ui->ui_line_edit_origin_file_path, &QLineEdit::textChanged, this, [this](){ui->ui_btn_make_cw_file->setEnabled(true);});
+    qRegisterMetaType<Word>("Word");
+    qRegisterMetaType<ConfusingWordsPair>("ConfusingWordsPair");
 }
 
 MainWindow::~MainWindow()
@@ -52,6 +51,72 @@ MainWindow::~MainWindow()
         delete pRemainCWPairs;
     if (pCitedCWPairs)
         delete pCitedCWPairs;
+}
+
+void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
+{
+    if (cwPair.isEmpty())
+    {
+        return;
+    }
+
+    QFile file(cwFileName(dist));
+
+    if (true != file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::warning(this, QCoreApplication::applicationName(), file.fileName() + "open failed", QMessageBox::Ok);
+        return;
+    }
+
+    QTextStream stm(&file);
+    stm.setCodec("UTF-8");
+
+    qDebug() <<"find one: " << cwPair.w1.word << ":" << cwPair.w1.exp << "-" << cwPair.w2.word << ":" << cwPair.w2.exp << "dist = " << dist;
+
+    /* Header: cw_pair_1 cw_pair_1_exp cw_pair_2 cw_pair_2_exp OK_times*/
+    stm << cwPair.w1.word << '\t' << cwPair.w1.exp << '\t'
+              << cwPair.w2.word << '\t' << cwPair.w2.exp << '\t'
+              << '0' << endl;
+
+    file.close();
+}
+
+void MainWindow::onParsedOnce()
+{
+    cwCalculatedTimes++;
+    qDebug("prog: %d/%d", cwCalculatedTimes, cwFullCalculateTimes);
+}
+
+void MainWindow::onCWFeedWordEaten(CWFileMaker *sponsor)
+{
+    if (wordsVecIt != wordsVec.end() - 1)
+    {
+        emit feedWord(*wordsVecIt, wordsVecIt - wordsVec.begin() + 1, sponsor);
+        wordsVecIt++;
+    }
+    else
+    {
+        QThread *thread = cwFileMakerThreads.value(sponsor);
+        thread->quit();
+        thread->wait();
+
+        qDebug("[0x%08x] finished", sponsor);
+
+        if (0 == cwFileMakerThreads.remove(sponsor))
+        {
+            QMessageBox::warning(this, "Remove thread failed", QString("%1's thread remove failed").arg((uint32_t)sponsor));
+            return;
+        }
+    }
+
+    if (cwFileMakerThreads.isEmpty())
+    {
+        qDebug() << "make cw files use" << cwMakeTimer.elapsed() << "ms";
+
+        RefreshFileList();
+
+        QMessageBox::information(this, "make cw files", "make complete");
+    }
 }
 
 static inline unsigned int min(unsigned int n1, unsigned int n2)
@@ -107,11 +172,12 @@ void MainWindow::on_ui_btn_select_origin_file_clicked()
     txtStream.setCodec("UTF-8");
 
     QString oneLineStr;
+    Word w;
 
     QTime t;
     t.start();
 
-    Word w;
+    wordsVec.clear();
     while (txtStream.readLineInto(&oneLineStr))
     {
         if (oneLineStr.isEmpty())
@@ -120,64 +186,31 @@ void MainWindow::on_ui_btn_select_origin_file_clicked()
         }
 
         w = parseOriginalFileLine(oneLineStr);
-        wordsVec.append(w);
 
-        qDebug() << w.word << ":" << w.exp;
+        if (w.isEmpty())
+        {
+            continue;
+        }
+
+        wordsVec.append(w);
     }
 
     qDebug("read && parse file use %d ms, with %d items", t.elapsed(), wordsVec.size());
-
-    if (QMessageBox::Ok == QMessageBox::question(this, QCoreApplication::applicationName(), "Make confusing words file now?", QMessageBox::Ok, QMessageBox::Cancel))
-    {
-        //TODO: use multi-thread to make cw file
-        makeCWFiles();
-
-        RefreshFileList();
-
-        ui->ui_btn_make_cw_file->setEnabled(false);
-    }
+    qDebug("going to calculate %u times", getCWPairCalcTimes());
 
     originalFile.close();
     ui->ui_line_edit_origin_file_path->setText(originalFileName);
-}
 
-void MainWindow::on_ui_cmb_box_edit_distance_currentTextChanged(const QString &arg1)
-{
-#if 0
-    if (arg1.isEmpty())
-        return;
-
-    QDir dir(QCoreApplication::applicationDirPath() + "/confusing_words/");
-    if  (!dir.exists())
-        dir.mkpath(QCoreApplication::applicationDirPath() + "/confusing_words/");
-
-    confusingFileName = QCoreApplication::applicationDirPath() + QString("/confusing_words/%1.txt").arg(arg1);
-
-    qDebug() << confusingFileName;
-
-    QFileInfo finfo(confusingFileName);
-    if (finfo.exists())
+    if (QMessageBox::Ok == QMessageBox::question(this, QCoreApplication::applicationName(), "Make confusing words file now?", QMessageBox::Ok, QMessageBox::Cancel))
     {
-        ui->ui_btn_operate_confusing_word_file->setText(CONFUSING_WORD_OPERATE_TEXT_DEL);
+        makeCWFiles();
+
+        ui->ui_btn_make_cw_file->setEnabled(false);
     }
     else
     {
-        ui->ui_btn_operate_confusing_word_file->setText(CONFUSING_WORD_OPERATE_TEXT_GEN);
+        ui->ui_btn_make_cw_file->setEnabled(true);
     }
-
-    uint32_t randIndex = getShowPairRandomIndex();
-
-    if (randIndex < 0)
-    {
-        return;
-    }
-
-    ConfusingWordsPair pair = pRemainCWPairs->at(randIndex);
-    pRemainCWPairs->removeAt(randIndex);
-    pShownCWPairs->append(pair);
-
-    showOneCWPair(pair);
-#endif
 }
 
 #if 0
@@ -220,6 +253,8 @@ void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
 
 bool MainWindow::makeCWFiles()
 {
+#if 0
+    //TODO: use multi-thread to make cw file
     if (wordsVec.isEmpty())
     {
         return false;
@@ -279,70 +314,61 @@ bool MainWindow::makeCWFiles()
     }
 
     return true;
-}
-
-#if 0
-bool MainWindow::makeCWFile(QString originalName, QString cwName, unsigned int dist)
-{
-    qDebug()<<"original file:"<<originalName;
-    qDebug()<<"cw file:"<<cwName;
-    qDebug()<<"dist:"<<dist;
-
-    QFile originalFile(originalName);
-    QFile cwFile(cwName);
-
-    if (true != originalFile.open(QIODevice::ReadOnly | QIODevice::Text))
+#endif
+    if (wordsVec.isEmpty())
     {
-        QMessageBox::warning(this, QCoreApplication::applicationName(), "original file open failed", QMessageBox::Ok);
         return false;
     }
 
-    if (true != cwFile.open(QIODevice::WriteOnly | QIODevice::Text))
+    if (!cwFileMakerThreads.isEmpty())
     {
-        QMessageBox::warning(this, QCoreApplication::applicationName(), "cw file open failed", QMessageBox::Ok);
-        originalFile.close();
-        return false;
-    }
-
-    QTextStream origTxtStm(&originalFile);
-    QTextStream compTxtStm(&originalFile);
-    QTextStream cwTxtStm(&cwFile);
-
-    origTxtStm.setCodec("UTF-8");
-    compTxtStm.setCodec("UTF-8");
-    cwTxtStm.setCodec("UTF-8");
-
-    QString origLineStr, compLineStr;
-
-    while (origTxtStm.readLineInto(&origLineStr))
-    {
-        qint64 prevOrigPos = origTxtStm.pos();
-        compTxtStm.seek(prevOrigPos);
-
-        while (compTxtStm.readLineInto(&compLineStr))
+        for (QMap<CWFileMaker *, QThread *>::iterator it = cwFileMakerThreads.begin(); it != cwFileMakerThreads.end(); it++)
         {
-            Word origWord = parseOriginalFileLine(origLineStr);
-            Word compWord = parseOriginalFileLine(compLineStr);
-
-            if (editDistance(origWord.word.toLatin1().data(), origWord.word.length(), compWord.word.toLatin1().data(), compWord.word.length()) == dist)
-            {
-
-                qDebug() << origWord.word << ":" << origWord.exp << "-" << compWord.word << ":" << compWord.exp;
-
-                /* Header: cw_pair_1 cw_pair_1_exp cw_pair_2 cw_pair_2_exp OK_times*/
-                cwTxtStm << origWord.word << ',' << origWord.exp << ','
-                         << compWord.word << ',' << compWord.exp << ','
-                         << '0';
-            }
+            it.value()->quit();
+            it.value()->wait();
         }
-        origTxtStm.seek(prevOrigPos);
+
+        cwFileMakerThreads.clear();
     }
 
-    originalFile.close();
-    cwFile.close();
+    QThread *cwMakeThread;
+    CWFileMaker *cwFileMaker;
+
+    wordsVecIt = wordsVec.begin();
+
+    for (int i = 0; i < CW_FILE_MAKER_MAX_DIST; i++)
+    {
+        cwFileMaker = new CWFileMaker(nullptr, &wordsVec);
+
+        cwMakeThread = new QThread;
+
+        cwFileMakerThreads.insert(cwFileMaker, cwMakeThread);
+
+        cwFileMaker->setMaxDist(CW_FILE_MAKER_MAX_DIST);
+        cwFileMaker->moveToThread(cwMakeThread);
+
+        connect(cwMakeThread, &QThread::finished, cwFileMaker, &CWFileMaker::deleteLater);
+        connect(cwMakeThread, &QThread::finished, cwMakeThread, &CWFileMaker::deleteLater);
+
+        connect(this, &MainWindow::feedWord, cwFileMaker, &CWFileMaker::onFeedWord);
+
+        connect(cwFileMaker, &CWFileMaker::cwFound, this, &MainWindow::onCWFound);
+        connect(cwFileMaker, &CWFileMaker::cwFeedWordEaten, this, &MainWindow::onCWFeedWordEaten);
+        connect(cwFileMaker, &CWFileMaker::parsedOnce, this, &MainWindow::onParsedOnce);
+
+        cwMakeThread->start();
+
+        //start feed words to thread
+        onCWFeedWordEaten(cwFileMaker);
+    }
+
+    cwMakeTimer.start();
+
+    cwFullCalculateTimes = getCWPairCalcTimes();
+    cwCalculatedTimes = 0;
+
     return true;
 }
-#endif
 
 Word MainWindow::parseOriginalFileLine(QString &line)
 {
@@ -356,10 +382,14 @@ Word MainWindow::parseOriginalFileLine(QString &line)
         return Word();
     }
 
-    qDebug()<<"first space"<<firstSpace<<"2nd:"<<secondSpace;
-
-
     return Word(line.mid(firstSpace + 1, wordLen), line.mid(secondSpace + 1));
+}
+
+uint32_t MainWindow::getCWPairCalcTimes()
+{
+    int32_t wordsNum = wordsVec.count();
+
+    return (wordsNum * (wordsNum - 1)) / 2;
 }
 
 void MainWindow::showOneCWPairRandomly()
@@ -373,7 +403,13 @@ void MainWindow::showOneCWPairRandomly()
 
     pCurrentCWPairs = pRemainCWPairs->at(index);
 
-    pRemainCWPairs->removeAt(index);
+//    pRemainCWPairs->removeAt(index);
+
+    double progress = (double)pCitedCWPairs->count() / (pCitedCWPairs->count() + pRemainCWPairs->count());
+    QString message = statusBarStudyProgressStr(ui->ui_cmb_box_edit_distance->currentText().toUInt(),
+                                           index,
+                                           progress);
+    ui->statusBar->showMessage(message);
 
     showOneCWPair(pCurrentCWPairs);
 }
@@ -430,7 +466,7 @@ void MainWindow::RefreshFileList()
         return;
     }
 
-    for (int i = 1; i <= CW_WORDS_MAX_DIST; i ++)
+    for (int i = 1; i <= CW_FILE_MAKER_MAX_DIST; i ++)
     {
         QString confusingFileName = cwFileName(i);
 
@@ -502,6 +538,11 @@ bool MainWindow::loadCWFile(QString fileName)
     return true;
 }
 
+QString MainWindow::statusBarStudyProgressStr(uint32_t dist, uint32_t index, double prog)
+{
+    return QString("dist: %1, index: %2, prog:%3").arg(dist).arg(index).arg(prog, 0, 'g', 3);
+}
+
 void MainWindow::on_ui_btn_next_pair_clicked()
 {
     showOneCWPairRandomly();
@@ -523,6 +564,8 @@ void MainWindow::on_ui_btn_load_cw_file_clicked()
         return;
     }
 
+    qDebug() << "This cw file has" << pRemainCWPairs->count() << "item";
+
     showOneCWPairRandomly();
 }
 
@@ -534,8 +577,6 @@ void MainWindow::on_ui_btn_make_cw_file_clicked()
     }
 
     makeCWFiles();
-
-    RefreshFileList();
 
     ui->ui_btn_make_cw_file->setEnabled(false);
 }
