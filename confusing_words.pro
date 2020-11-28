@@ -28,13 +28,16 @@ SOURCES += \
         mainwindow.cpp \
     confusingwordspair.cpp \
     word.cpp \
-    cwfilemaker.cpp 
+    cwfilemaker.cpp \
+    cwfilemakeprogresswidget.cpp
 
 HEADERS += \
         mainwindow.h \
     confusingwordspair.h \
     word.h \
-    cwfilemaker.h
+    cwfilemaker.h \
+    cwfilemakeprogresswidget.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+        cwfilemakeprogresswidget.ui

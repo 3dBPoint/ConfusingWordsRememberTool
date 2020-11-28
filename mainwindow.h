@@ -1,8 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "confusingwordspair.h"
+#include "cwfilemakeprogresswidget.h"
 #include "cwfilemaker.h"
+#include "confusingwordspair.h"
 
 #include <QFile>
 #include <QMainWindow>
@@ -27,6 +28,8 @@ public:
 
 signals:
     void feedWord(Word w, unsigned int startSearchPos, CWFileMaker *distnation);
+    void overallProgress(int prog, int full);
+    void showProgWidget();
 
 public slots:
     void onCWFound(int dist, ConfusingWordsPair cwPair);
@@ -60,6 +63,9 @@ private:
     uint32_t cwCalculatedTimes;
     uint32_t cwFullCalculateTimes;
     QTime cwMakeTimer;
+
+    CWFileMakeProgressWidget *progWidget = nullptr;
+//    QThread *progWidgetThread = nullptr;
 
     bool makeCWFiles();
 

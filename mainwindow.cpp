@@ -7,12 +7,6 @@
 #include <QDebug>
 #include <QThread>
 
-#define CONFUSING_WORD_OPERATE_TEXT_GEN "Generate!"
-#define CONFUSING_WORD_OPERATE_TEXT_DEL "Delete!"
-
-#define ORIGINAL_FILE_SEL_BTN_TEXT_SELECT "Browse"
-#define ORIGINAL_FILE_SEL_BTN_TEXT_CLOSE  "Close"
-
 #define CW_WORDS_FILE_DIR "/confusing_words/"
 
 #define UI_CMBBOX_NO_CW_FILE_FOUND_TXT ("No file found")
@@ -20,6 +14,8 @@
 #define FRONT_BODY "<html><head/><body><p align=\"center\"><span style=\" font-size:16pt;\">"
 #define REAR_BODY "</span></p></body></html>"
 #define CENTER_ALIGNMENT_STR(str) (FRONT_BODY + str + REAR_BODY)
+
+#define CW_MAKER_THREAD_NUM 4
 
 /**** Debug Switch ****/
 #define MAKE_CW_FILE_DEBUG 1
@@ -49,8 +45,34 @@ MainWindow::~MainWindow()
     delete ui;
     if (pRemainCWPairs)
         delete pRemainCWPairs;
+
     if (pCitedCWPairs)
         delete pCitedCWPairs;
+
+//    if (progWidget && progWidgetThread)
+//    {
+//        progWidgetThread->quit();
+//        progWidgetThread->wait();
+//    }
+
+//    progWidget = nullptr;
+//    progWidgetThread = nullptr;
+    if (progWidget)
+    {
+        delete progWidget;
+        progWidget = nullptr;
+    }
+
+    if (cwFileMakerThreads.isEmpty())
+    {
+        for (QMap<CWFileMaker *, QThread *>::iterator it = cwFileMakerThreads.begin(); it != cwFileMakerThreads.end(); it++)
+        {
+            it.value()->quit();
+            it.value()->wait();
+
+            cwFileMakerThreads.remove(it.key());
+        }
+    }
 }
 
 void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
@@ -71,7 +93,9 @@ void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
     QTextStream stm(&file);
     stm.setCodec("UTF-8");
 
-    qDebug() <<"find one: " << cwPair.w1.word << ":" << cwPair.w1.exp << "-" << cwPair.w2.word << ":" << cwPair.w2.exp << "dist = " << dist;
+#if MAKE_CW_FILE_DEBUG
+    qDebug() <<"find one:" << "dist=" << dist << cwPair.w1.word << cwPair.w1.exp << "-" << cwPair.w2.word << cwPair.w2.exp;
+#endif
 
     /* Header: cw_pair_1 cw_pair_1_exp cw_pair_2 cw_pair_2_exp OK_times*/
     stm << cwPair.w1.word << '\t' << cwPair.w1.exp << '\t'
@@ -84,7 +108,7 @@ void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
 void MainWindow::onParsedOnce()
 {
     cwCalculatedTimes++;
-    qDebug("prog: %d/%d", cwCalculatedTimes, cwFullCalculateTimes);
+    emit overallProgress(cwCalculatedTimes, cwFullCalculateTimes);
 }
 
 void MainWindow::onCWFeedWordEaten(CWFileMaker *sponsor)
@@ -114,6 +138,19 @@ void MainWindow::onCWFeedWordEaten(CWFileMaker *sponsor)
         qDebug() << "make cw files use" << cwMakeTimer.elapsed() << "ms";
 
         RefreshFileList();
+
+//        if (progWidget && progWidgetThread)
+//        {
+//            progWidgetThread->quit();
+//            progWidgetThread->wait();
+//        }
+
+        if (progWidget)
+        {
+            delete progWidget;
+            progWidget = nullptr;
+        }
+//        progWidgetThread = nullptr;
 
         QMessageBox::information(this, "make cw files", "make complete");
     }
@@ -336,7 +373,30 @@ bool MainWindow::makeCWFiles()
 
     wordsVecIt = wordsVec.begin();
 
-    for (int i = 0; i < CW_FILE_MAKER_MAX_DIST; i++)
+    // new and start progress display widget
+
+    progWidget = new CWFileMakeProgressWidget();
+//    progWidgetThread = new QThread;
+
+//    progWidget->moveToThread(progWidgetThread);
+
+    progWidget->setWindowTitle("Progress");
+    progWidget->setWindowFlags(windowFlags() &~ Qt::WindowCloseButtonHint);
+
+    progWidget->onSetFull(getCWPairCalcTimes());
+
+//    connect(progWidgetThread, &QThread::finished, progWidgetThread, &QThread::deleteLater);
+//    connect(progWidgetThread, &QThread::finished, progWidget, &CWFileMakeProgressWidget::deleteLater);
+
+    connect(this, &MainWindow::overallProgress, progWidget, &CWFileMakeProgressWidget::onSetProgress);
+    connect(this, &MainWindow::showProgWidget, progWidget, &CWFileMakeProgressWidget::show);
+
+//    progWidgetThread->start();
+
+    emit showProgWidget();
+
+    // new and start cw maker threads
+    for (int i = 0; i < CW_MAKER_THREAD_NUM; i++)
     {
         cwFileMaker = new CWFileMaker(nullptr, &wordsVec);
 
@@ -350,15 +410,16 @@ bool MainWindow::makeCWFiles()
         connect(cwMakeThread, &QThread::finished, cwFileMaker, &CWFileMaker::deleteLater);
         connect(cwMakeThread, &QThread::finished, cwMakeThread, &CWFileMaker::deleteLater);
 
-        connect(this, &MainWindow::feedWord, cwFileMaker, &CWFileMaker::onFeedWord);
-
         connect(cwFileMaker, &CWFileMaker::cwFound, this, &MainWindow::onCWFound);
         connect(cwFileMaker, &CWFileMaker::cwFeedWordEaten, this, &MainWindow::onCWFeedWordEaten);
-        connect(cwFileMaker, &CWFileMaker::parsedOnce, this, &MainWindow::onParsedOnce);
+
+        connect(cwFileMaker, &CWFileMaker::parsedOnce, progWidget, &CWFileMakeProgressWidget::onProgressIncreaseOnece);
+
+        connect(this, &MainWindow::feedWord, cwFileMaker, &CWFileMaker::onFeedWord);
 
         cwMakeThread->start();
 
-        //start feed words to thread
+        //start feed words to the thread created
         onCWFeedWordEaten(cwFileMaker);
     }
 
