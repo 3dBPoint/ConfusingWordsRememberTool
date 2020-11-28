@@ -18,7 +18,7 @@
 #define CW_MAKER_THREAD_NUM 4
 
 /**** Debug Switch ****/
-#define MAKE_CW_FILE_DEBUG 1
+#define MAKE_CW_FILE_DEBUG 0
 #define DISP_CW_PAIR_DEBUG 1
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -84,7 +84,7 @@ void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
 
     QFile file(cwFileName(dist));
 
-    if (true != file.open(QIODevice::WriteOnly | QIODevice::Text))
+    if (true != file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append))
     {
         QMessageBox::warning(this, QCoreApplication::applicationName(), file.fileName() + "open failed", QMessageBox::Ok);
         return;
@@ -394,6 +394,12 @@ bool MainWindow::makeCWFiles()
 //    progWidgetThread->start();
 
     emit showProgWidget();
+
+    //delete files
+    for (int i = 0; i < CW_FILE_MAKER_MAX_DIST; i++)
+    {
+        QFile::remove(cwFileName(i));
+    }
 
     // new and start cw maker threads
     for (int i = 0; i < CW_MAKER_THREAD_NUM; i++)
