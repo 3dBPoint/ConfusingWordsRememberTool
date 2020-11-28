@@ -12,6 +12,7 @@ class CWFileMaker : public QObject
     Q_OBJECT
 public:
     explicit CWFileMaker(QObject *parent = nullptr, QVector<Word> *pWVec = nullptr);
+    ~CWFileMaker();
 
     void setPWordVec(QVector<Word> *value);
     void setMaxDist(const uint32_t &value);
@@ -27,6 +28,9 @@ public slots:
 private:
     uint32_t maxDist = CW_FILE_MAKER_MAX_DIST;
     QVector<Word> *pWordVec;
+
+    unsigned int editDistance(char *str1, unsigned int len1, char *str2, unsigned int len2);
+    unsigned int editDistance(QString left, QString right);
 };
 
 #endif // CWFILEMAKER_H
