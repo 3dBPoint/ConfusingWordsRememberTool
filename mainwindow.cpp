@@ -15,7 +15,8 @@
 #define REAR_BODY "</span></p></body></html>"
 #define CENTER_ALIGNMENT_STR(str) (FRONT_BODY + str + REAR_BODY)
 
-#define CW_MAKER_THREAD_NUM 4
+#define CW_MAKER_THREAD_NUM             (4)
+#define CW_REMEMBER_MAX_CORRECT_TIMES   (5)
 
 /**** Debug Switch ****/
 #define MAKE_CW_FILE_DEBUG 0
@@ -29,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     pRemainCWPairs = new QList<ConfusingWordsPair>();
     pCitedCWPairs = new QList<ConfusingWordsPair>();
+    pShownCWPairs = new QList<ConfusingWordsPair>();
 
     RefreshFileList();
 
@@ -42,12 +44,25 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    // Save file first if there is any
+    if (selctedDist > 0)
+    {
+        if (true != ConfusingWordsPair::saveConfusingWordsPairToFile(cwFileName(selctedDist), (*pCitedCWPairs + *pRemainCWPairs + *pShownCWPairs)))
+        {
+            QMessageBox::critical(this, "critical", "Cannot save confusing words in use to file.", QMessageBox::Yes, QMessageBox::No);
+        }
+    }
+
     delete ui;
+
     if (pRemainCWPairs)
         delete pRemainCWPairs;
 
     if (pCitedCWPairs)
         delete pCitedCWPairs;
+
+    if (pShownCWPairs)
+        delete pShownCWPairs;
 
 //    if (progWidget && progWidgetThread)
 //    {
@@ -103,12 +118,6 @@ void MainWindow::onCWFound(int dist, ConfusingWordsPair cwPair)
               << '0' << endl;
 
     file.close();
-}
-
-void MainWindow::onParsedOnce()
-{
-    cwCalculatedTimes++;
-    emit overallProgress(cwCalculatedTimes, cwFullCalculateTimes);
 }
 
 void MainWindow::onCWFeedWordEaten(CWFileMaker *sponsor)
@@ -291,7 +300,6 @@ void MainWindow::on_ui_btn_operate_confusing_word_file_clicked()
 bool MainWindow::makeCWFiles()
 {
 #if 0
-    //TODO: use multi-thread to make cw file
     if (wordsVec.isEmpty())
     {
         return false;
@@ -388,12 +396,9 @@ bool MainWindow::makeCWFiles()
 //    connect(progWidgetThread, &QThread::finished, progWidgetThread, &QThread::deleteLater);
 //    connect(progWidgetThread, &QThread::finished, progWidget, &CWFileMakeProgressWidget::deleteLater);
 
-    connect(this, &MainWindow::overallProgress, progWidget, &CWFileMakeProgressWidget::onSetProgress);
-    connect(this, &MainWindow::showProgWidget, progWidget, &CWFileMakeProgressWidget::show);
-
 //    progWidgetThread->start();
 
-    emit showProgWidget();
+    progWidget->show();
 
     //delete files
     for (int i = 0; i < CW_FILE_MAKER_MAX_DIST; i++)
@@ -432,7 +437,6 @@ bool MainWindow::makeCWFiles()
     cwMakeTimer.start();
 
     cwFullCalculateTimes = getCWPairCalcTimes();
-    cwCalculatedTimes = 0;
 
     return true;
 }
@@ -461,34 +465,50 @@ uint32_t MainWindow::getCWPairCalcTimes()
 
 void MainWindow::showOneCWPairRandomly()
 {
-    int index = getShowPairRandomIndex();
-    if (index < 0)
+    ConfusingWordsPair currentCWPair;
+
+    currentShowWordIndex = getShowPairRandomIndex();
+    if (currentShowWordIndex < 0)
     {
         QMessageBox::warning(this, QCoreApplication::applicationName(), "No confusing words pair");
         return;
     }
 
-    pCurrentCWPairs = pRemainCWPairs->at(index);
+    currentCWPair = pRemainCWPairs->at(currentShowWordIndex);
 
-//    pRemainCWPairs->removeAt(index);
+    if (currentCWPair.correctTimes >= CW_REMEMBER_MAX_CORRECT_TIMES)
+    {
+        qDebug() << "impossible correct times";
+        return;
+    }
 
-    double progress = (double)pCitedCWPairs->count() / (pCitedCWPairs->count() + pRemainCWPairs->count());
-    QString message = statusBarStudyProgressStr(ui->ui_cmb_box_edit_distance->currentText().toUInt(),
-                                           index,
-                                           progress);
+    double progress = (double)pCitedCWPairs->count() / (pCitedCWPairs->count() + pRemainCWPairs->count() + pShownCWPairs->count());
+    QString message = statusBarStudyProgressStr(pRemainCWPairs->count(), pShownCWPairs->count(), pCitedCWPairs->count(), progress);
     ui->statusBar->showMessage(message);
 
-    showOneCWPair(pCurrentCWPairs);
+    showOneCWPair(currentCWPair);
+    qDebug() << "correct times:" << currentCWPair.correctTimes;
 }
 
 int32_t MainWindow::getShowPairRandomIndex()
 {
-    // TODO: if remain cw pairs is empty, swap it with the shown one
-
     // generate a random value between 0 to num of remaining confusing words
     if (pRemainCWPairs->isEmpty())
     {
-        return -1;
+        if (pShownCWPairs->isEmpty())
+        {
+            return -1;
+        }
+        else
+        {
+            QList<ConfusingWordsPair> *temp = pRemainCWPairs;
+            pRemainCWPairs = pShownCWPairs;
+            pShownCWPairs = temp;
+
+            pShownCWPairs->clear();
+
+            qDebug() << "swap cited list and remain list";
+        }
     }
 
     return qrand() % pRemainCWPairs->size();
@@ -508,6 +528,8 @@ void MainWindow::showOneCWPair(ConfusingWordsPair pair)
     }
     else
     {
+        qDebug() << "reversed display";
+
         ui->ui_label_word_1->setText(CENTER_ALIGNMENT_STR(pair.w2.word));
         ui->ui_label_word_2->setText(CENTER_ALIGNMENT_STR(pair.w1.word));
 
@@ -515,7 +537,8 @@ void MainWindow::showOneCWPair(ConfusingWordsPair pair)
         ui->ui_txt_edit_exp_2->setText(pair.w1.exp);
     }
 
-    //TODO: status bar info show
+    ui->ui_txt_edit_exp_1->hide();
+    ui->ui_txt_edit_exp_2->hide();
 }
 
 void MainWindow::RefreshFileList()
@@ -562,7 +585,7 @@ QString MainWindow::cwFileName(int dist)
 
 bool MainWindow::loadCWFile(QString fileName)
 {
-    if (!pRemainCWPairs || !pCitedCWPairs)
+    if (!pRemainCWPairs || !pCitedCWPairs || !pShownCWPairs)
     {
         QMessageBox::critical(this, "internal error", (__FILE__ + __LINE__));
         return false;
@@ -583,6 +606,7 @@ bool MainWindow::loadCWFile(QString fileName)
     tstm.setCodec("UTF-8");
 
     pRemainCWPairs->clear();
+    pShownCWPairs->clear();
     pCitedCWPairs->clear();
 
     while (tstm.readLineInto(&lineStr))
@@ -593,21 +617,44 @@ bool MainWindow::loadCWFile(QString fileName)
             qDebug() << "read NG line: " << lineStr;
             continue;
         }
-        pRemainCWPairs->append(pair);
+
+        if (pair.correctTimes < CW_REMEMBER_MAX_CORRECT_TIMES)
+        {
+            pRemainCWPairs->append(pair);
+        }
+        else
+        {
+            pCitedCWPairs->append(pair);
+        }
     }
 
     if (pRemainCWPairs->isEmpty())
     {
-        QMessageBox::critical(this, "Invalid CW file", "Cannot parse at least one line of " + fileName);
+        QMessageBox::critical(this, "Invalid CW file", "Invalid file or all remembered?\nFile: " + fileName);
+
         return false;
     }
 
     return true;
 }
 
-QString MainWindow::statusBarStudyProgressStr(uint32_t dist, uint32_t index, double prog)
+QString MainWindow::statusBarStudyProgressStr(int remain, int shown, int recited, double prog)
 {
-    return QString("dist: %1, index: %2, prog:%3").arg(dist).arg(index).arg(prog, 0, 'g', 3);
+    return QString("remain[%1]  shown[%2]  recited[%3]  (%4%)").arg(remain).arg(shown).arg(recited).arg(prog * 100, 0, 'g', 3);
+}
+
+void MainWindow::displayCurrentPairExp(bool left, bool right)
+{
+    if (currentShowWordIndex < 0)
+    {
+        return;
+    }
+
+    if (left)
+        ui->ui_txt_edit_exp_1->show();
+
+    if (right)
+        ui->ui_txt_edit_exp_2->show();
 }
 
 void MainWindow::on_ui_btn_next_pair_clicked()
@@ -617,6 +664,20 @@ void MainWindow::on_ui_btn_next_pair_clicked()
 
 void MainWindow::on_ui_btn_load_cw_file_clicked()
 {
+    // Save file first if there is any
+    if (selctedDist > 0)
+    {
+        if (true != ConfusingWordsPair::saveConfusingWordsPairToFile(cwFileName(selctedDist), (*pCitedCWPairs + *pRemainCWPairs + *pShownCWPairs)))
+        {
+            int32_t ret = QMessageBox::critical(this, "critical", "Cannot save confusing words in use to file, discard?", QMessageBox::Ok, QMessageBox::No);
+            if (QMessageBox::Ok != ret)
+            {
+                return;
+            }
+        }
+    }
+
+    selctedDist = -1;
     QString s = ui->ui_cmb_box_edit_distance->currentText();
 
     if (s == UI_CMBBOX_NO_CW_FILE_FOUND_TXT)
@@ -624,10 +685,16 @@ void MainWindow::on_ui_btn_load_cw_file_clicked()
         return;
     }
 
-    int dist = s.toInt();
+    selctedDist = s.toInt();
 
-    if (true != loadCWFile(cwFileName(dist)))
+    if (true != loadCWFile(cwFileName(selctedDist)))
     {
+        pRemainCWPairs->clear();
+        pShownCWPairs->clear();
+        pCitedCWPairs->clear();
+
+        QMessageBox::critical(this, "critical", "open cw file failed" + cwFileName(selctedDist));
+
         return;
     }
 
@@ -646,4 +713,62 @@ void MainWindow::on_ui_btn_make_cw_file_clicked()
     makeCWFiles();
 
     ui->ui_btn_make_cw_file->setEnabled(false);
+}
+
+void MainWindow::on_ui_btn_remove_the_pair_clicked()
+{
+    if (currentShowWordIndex < 0)
+    {
+        return;
+    }
+
+    ConfusingWordsPair pair = pRemainCWPairs->at(currentShowWordIndex);
+    pair.correctTimes = CW_REMEMBER_MAX_CORRECT_TIMES;
+    pCitedCWPairs->append(pair);
+
+    pRemainCWPairs->removeAt(currentShowWordIndex);
+
+    showOneCWPairRandomly();
+}
+
+void MainWindow::on_ui_btn_remembered_the_pair_once_clicked()
+{
+    if (currentShowWordIndex < 0)
+    {
+        return;
+    }
+
+    ConfusingWordsPair pair = pRemainCWPairs->at(currentShowWordIndex);
+
+    pair.correctTimes += 1;
+
+    if (pair.correctTimes < CW_REMEMBER_MAX_CORRECT_TIMES)
+    {
+        pShownCWPairs->append(pair);
+    }
+    else
+    {
+        pCitedCWPairs->append(pair);
+    }
+
+    pRemainCWPairs->removeAt(currentShowWordIndex);
+
+    showOneCWPairRandomly();
+}
+
+void MainWindow::on_ui_btn_forget_the_pair_clicked()
+{
+    if (currentShowWordIndex < 0)
+    {
+        return;
+    }
+
+    (*pRemainCWPairs)[currentShowWordIndex].correctTimes = 0;
+
+    showOneCWPairRandomly();
+}
+
+void MainWindow::on_ui_btn_show_meaning_clicked()
+{
+    displayCurrentPairExp(true, true);
 }

@@ -68,8 +68,13 @@ void ConfusingWordsPair::parse(QString str)
     w2.exp = list[CWPAIR_ITEM_EXP_2];
 }
 
-bool ConfusingWordsPair::saveConfusingWordsPairToFile(QString fileName, QVector<ConfusingWordsPair> *shownPairs, QVector<ConfusingWordsPair> *remainingPairs)
+bool ConfusingWordsPair::saveConfusingWordsPairToFile(QString fileName, QList<ConfusingWordsPair> &pairList)
 {
+    if (pairList.isEmpty())
+    {
+        return false;
+    }
+
     if (fileName.isEmpty())
     {
         return false;
@@ -83,17 +88,12 @@ bool ConfusingWordsPair::saveConfusingWordsPairToFile(QString fileName, QVector<
     }
 
     QTextStream stm(&file);
+    stm.setCodec("UTF-8");
 
-    foreach (ConfusingWordsPair wp, *shownPairs) {
+    foreach (ConfusingWordsPair wp, pairList) {
         stm << wp.w1.word << CW_FILE_SEPARATOR << wp.w1.exp << CW_FILE_SEPARATOR
             << wp.w2.word << CW_FILE_SEPARATOR << wp.w2.exp << CW_FILE_SEPARATOR
-            << wp.correctTimes;
-    }
-
-    foreach (ConfusingWordsPair wp, *remainingPairs) {
-        stm << wp.w1.word << CW_FILE_SEPARATOR << wp.w1.exp << CW_FILE_SEPARATOR
-            << wp.w2.word << CW_FILE_SEPARATOR << wp.w2.exp << CW_FILE_SEPARATOR
-            << wp.correctTimes;
+            << wp.correctTimes << endl;
     }
 
     file.close();

@@ -19,7 +19,7 @@ public:
         return w1.isEmpty() || w2.isEmpty();
     }
 
-    static bool saveConfusingWordsPairToFile(QString fileName, QVector<ConfusingWordsPair> *shownPairs, QVector<ConfusingWordsPair> *remainingPairs);
+    static bool saveConfusingWordsPairToFile(QString fileName, QList<ConfusingWordsPair> &pairList);
 };
 
 #endif // CONFUSINGWORDSPAIR_H
