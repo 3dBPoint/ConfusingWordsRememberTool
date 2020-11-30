@@ -75,10 +75,18 @@
        <item row="2" column="0" colspan="2">
         <layout class="QGridLayout" name="gridLayout_3">
          <item row="0" column="0">
-          <widget class="QTextEdit" name="ui_txt_edit_exp_1"/>
+          <widget class="QTextEdit" name="ui_txt_edit_exp_1">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QTextEdit" name="ui_txt_edit_exp_2"/>
+          <widget class="QTextEdit" name="ui_txt_edit_exp_2">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
@@ -92,21 +100,24 @@
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Remove this pair of words permanently&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>Too easy</string>
+              <string>Too easy (G)</string>
              </property>
             </widget>
            </item>
            <item row="0" column="1">
             <widget class="QPushButton" name="ui_btn_show_meaning">
              <property name="text">
-              <string>Show meaning</string>
+              <string>Show meaning (S)</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item row="0" column="2">
             <widget class="QPushButton" name="ui_btn_next_pair">
              <property name="text">
-              <string>Next one</string>
+              <string>Next one (A)</string>
              </property>
             </widget>
            </item>
@@ -120,7 +131,7 @@
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Recited count +1&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>I know this</string>
+              <string>I know this (D)</string>
              </property>
             </widget>
            </item>
@@ -130,7 +141,7 @@
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Recited count reset to 0.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>I forgot this</string>
+              <string>I forgot this (F)</string>
              </property>
             </widget>
            </item>

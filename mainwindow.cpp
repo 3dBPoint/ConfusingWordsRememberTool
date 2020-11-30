@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QThread>
+#include <QKeyEvent>
 
 #define CW_WORDS_FILE_DIR "/confusing_words/"
 
@@ -31,6 +32,10 @@ MainWindow::MainWindow(QWidget *parent) :
     pRemainCWPairs = new QList<ConfusingWordsPair>();
     pCitedCWPairs = new QList<ConfusingWordsPair>();
     pShownCWPairs = new QList<ConfusingWordsPair>();
+
+    cwSaveTimer = new QTimer(this);
+    cwSaveTimer->setInterval(5000);
+    connect(cwSaveTimer, &QTimer::timeout, this, &MainWindow::onCWSaveTimerTimeout);
 
     RefreshFileList();
 
@@ -487,6 +492,15 @@ void MainWindow::showOneCWPairRandomly()
     ui->statusBar->showMessage(message);
 
     showOneCWPair(currentCWPair);
+
+    if (ui->ui_btn_show_meaning->isChecked())
+    {
+        displayCurrentPairExp(true, true);
+    }
+    else
+    {
+        displayCurrentPairExp(false, false);
+    }
     qDebug() << "correct times:" << currentCWPair.correctTimes;
 }
 
@@ -536,9 +550,6 @@ void MainWindow::showOneCWPair(ConfusingWordsPair pair)
         ui->ui_txt_edit_exp_1->setText(pair.w2.exp);
         ui->ui_txt_edit_exp_2->setText(pair.w1.exp);
     }
-
-    ui->ui_txt_edit_exp_1->hide();
-    ui->ui_txt_edit_exp_2->hide();
 }
 
 void MainWindow::RefreshFileList()
@@ -652,9 +663,13 @@ void MainWindow::displayCurrentPairExp(bool left, bool right)
 
     if (left)
         ui->ui_txt_edit_exp_1->show();
+    else
+        ui->ui_txt_edit_exp_1->hide();
 
     if (right)
         ui->ui_txt_edit_exp_2->show();
+    else
+        ui->ui_txt_edit_exp_2->hide();
 }
 
 void MainWindow::on_ui_btn_next_pair_clicked()
@@ -696,6 +711,11 @@ void MainWindow::on_ui_btn_load_cw_file_clicked()
         QMessageBox::critical(this, "critical", "open cw file failed" + cwFileName(selctedDist));
 
         return;
+    }
+
+    if (false == cwSaveTimer->isActive())
+    {
+        cwSaveTimer->start();
     }
 
     qDebug() << "This cw file has" << pRemainCWPairs->count() << "item";
@@ -768,7 +788,44 @@ void MainWindow::on_ui_btn_forget_the_pair_clicked()
     showOneCWPairRandomly();
 }
 
-void MainWindow::on_ui_btn_show_meaning_clicked()
+void MainWindow::on_ui_btn_show_meaning_clicked(bool checked)
 {
-    displayCurrentPairExp(true, true);
+    displayCurrentPairExp(checked, checked);
+}
+
+void MainWindow::onCWSaveTimerTimeout()
+{
+    if (selctedDist > 0)
+    {
+        ConfusingWordsPair::saveConfusingWordsPairToFile(
+                    cwFileName(selctedDist),
+                    (*pCitedCWPairs + *pRemainCWPairs + *pShownCWPairs));
+    }
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *e)
+{
+    switch (e->key())
+    {
+    case Qt::Key_A:
+        on_ui_btn_next_pair_clicked();
+        break;
+    case Qt::Key_S:
+        ui->ui_btn_show_meaning->setChecked(!ui->ui_btn_show_meaning->isChecked());
+        on_ui_btn_show_meaning_clicked(ui->ui_btn_show_meaning->isChecked());
+        break;
+    case Qt::Key_D:
+        on_ui_btn_remembered_the_pair_once_clicked();
+        break;
+    case Qt::Key_F:
+        on_ui_btn_forget_the_pair_clicked();
+        break;
+    case Qt::Key_G:
+        on_ui_btn_remove_the_pair_clicked();
+        break;
+
+    default:
+        break;
+    }
+    this->setFocus();
 }

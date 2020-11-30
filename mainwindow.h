@@ -11,6 +11,9 @@
 #include <QTextStream>
 #include <QMap>
 #include <QTime>
+#include <QTimer>
+#include <QSystemTrayIcon>
+#include <QMenu>
 
 #define CW_FILE_MAKE_THREAD_NUM 4
 
@@ -52,7 +55,12 @@ private slots:
 
     void on_ui_btn_forget_the_pair_clicked();
 
-    void on_ui_btn_show_meaning_clicked();
+    void on_ui_btn_show_meaning_clicked(bool checked);
+
+    void onCWSaveTimerTimeout();
+
+protected:
+    void keyReleaseEvent(QKeyEvent *e);
 
 private:
     Ui::MainWindow *ui;
@@ -69,6 +77,8 @@ private:
 
     uint32_t cwFullCalculateTimes = 0;
     QTime cwMakeTimer;
+
+    QTimer *cwSaveTimer = nullptr;
 
     uint32_t selctedDist = 0;
 
